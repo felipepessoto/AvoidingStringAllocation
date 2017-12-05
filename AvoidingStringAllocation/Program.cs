@@ -72,6 +72,113 @@ namespace AvoidingStringAllocation
         }
 
         [Benchmark]
+        public void ReadLine_ResultCharArray()
+        {
+            char[][] result = new char[positions.Length][];
+
+            //Allocate char array of right size
+            for (int i = 0; i < positions.Length; i++)
+            {
+                result[i] = new char[positions[i]];
+            }
+
+            using (TextReader sr = GetReader())
+            {
+                string line;
+                while ((line = sr.ReadLine()) != null)
+                {
+                    int lastIndex = 0;
+
+                    for (int i = 0; i < positions.Length; i++)
+                    {
+                        int fieldLength = positions[i];
+
+                        for (int j = 0; j < fieldLength; j++)
+                        {
+                            result[i][j] = line[lastIndex + j];
+                        }
+
+                        lastIndex += fieldLength;
+                    }
+                }
+            }
+        }
+
+        [Benchmark]
+        public void Read_ResultCharArray()
+        {
+            int bufferSize = GetLineSize();
+            char[] buffer = new char[bufferSize];
+            char[][] result = new char[positions.Length][];
+
+            //Allocate char array of right size
+            for (int i = 0; i < positions.Length; i++)
+            {
+                result[i] = new char[positions[i]];
+            }
+
+            using (TextReader sr = GetReader())
+            {
+                while (sr.Read(buffer, 0, bufferSize) > 0)
+                {
+                    int lastIndex = 0;
+
+                    for (int i = 0; i < positions.Length; i++)
+                    {
+                        int fieldLength = positions[i];
+
+                        for (int j = 0; j < fieldLength; j++)
+                        {
+                            result[i][j] = buffer[lastIndex + j];
+                        }
+
+                        lastIndex += fieldLength;
+                    }
+                }
+            }
+        }
+
+        [Benchmark]
+        public void Read_ResultUseUnsafeCharPointer()
+        {
+            int bufferSize = GetLineSize();
+            char[] buffer = new char[bufferSize];
+            string[] result = new string[positions.Length];
+
+            //Allocate empty strings of right size
+            for (int i = 0; i < positions.Length; i++)
+            {
+                result[i] = new string(' ', positions[i]);
+            }
+
+            using (TextReader sr = GetReader())
+            {
+                while (sr.Read(buffer, 0, bufferSize) > 0)
+                {
+                    int lastIndex = 0;
+
+                    for (int i = 0; i < positions.Length; i++)
+                    {
+                        int fieldLength = positions[i];
+
+                        unsafe
+                        {
+                            fixed (char* chars = result[i])
+                            {
+                                for (int j = 0; j < fieldLength; j++)
+                                {
+                                    chars[j] = buffer[lastIndex + j];
+                                }
+                            }
+                        }
+
+                        lastIndex += fieldLength;
+                    }
+                }
+            }
+        }
+
+        [Benchmark]
         public void Read_ResultSpan()
         {
             int bufferSize = GetLineSize();
