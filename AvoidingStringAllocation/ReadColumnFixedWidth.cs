@@ -8,6 +8,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace AvoidingStringAllocation
 {
@@ -19,6 +20,8 @@ namespace AvoidingStringAllocation
         const string Path = "Data.txt";
         private readonly static int[] positions = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
         private readonly static StreamReader reader = new StreamReader(Path);
+        private readonly static FileStream fileStream = File.OpenRead(Path);
+        private readonly static Decoder decoder = Encoding.Default.GetDecoder();
 
         private int GetLineSize()
         {
@@ -37,6 +40,12 @@ namespace AvoidingStringAllocation
             reader.BaseStream.Position = 0;
             reader.DiscardBufferedData();
             return reader;
+        }
+
+        private static FileStream GetFileStream()
+        {
+            fileStream.Position = 0;
+            return fileStream;
         }
 
         [Benchmark]
@@ -247,6 +256,42 @@ namespace AvoidingStringAllocation
         public long Read_ResultSpanCharArray()
         {
             return Read_ResultSpan(false);
+        }
+
+        [Benchmark]
+        public long Read_ResultSpan_FileStream()
+        {
+            int bufferSize = GetLineSize();
+            Span<byte> buffer = stackalloc byte[bufferSize];
+            Span<char> charBuffer = stackalloc char[bufferSize];
+
+            long total = 0;
+
+            FileStream sr = GetFileStream();
+            {
+                while (sr.Read(buffer) > 0)
+                {
+                    int lastIndex = 0;
+
+                    for (int i = 0; i < positions.Length; i++)
+                    {
+                        ReadOnlySpan<byte> result = buffer.Slice(lastIndex, positions[i]);
+
+                        lastIndex += positions[i];
+
+                        var len = decoder.GetChars(result, charBuffer, flush: false);
+
+                        total += int.Parse(charBuffer.Slice(0, len));
+                    }
+                }
+            }
+
+            if (total != expected)
+            {
+                throw new Exception("Wrong result");
+            }
+
+            return total;
         }
 
         private long Read_ResultSpan(bool stack)
