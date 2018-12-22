@@ -34,8 +34,6 @@ namespace AvoidingStringAllocation
 
         private static StreamReader GetReader()
         {
-            reader.BaseStream.Position = 0;
-            reader.DiscardBufferedData();
             return reader;
         }
 
@@ -324,6 +322,14 @@ namespace AvoidingStringAllocation
                     }
                 }
             }
+        }
+
+
+        [IterationSetup]
+        public void IterationSetup()
+        {
+            reader.BaseStream.Position = 0;
+            reader.DiscardBufferedData();
         }
 
         private class MyConfig : ManualConfig
